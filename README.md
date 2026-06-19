@@ -33,4 +33,4 @@ app/ - корень программы
 ```
 
 ## ER-диаграмма
-![alt text](image.png)
+![docs](er-diagramm.png)
