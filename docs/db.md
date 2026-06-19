@@ -10,7 +10,7 @@ Table cve_records {
     cvss_base_severity str - урвоень критичности для фильтрации [АП-02 и АП-03]
     cvss_vector str nullable - нужен для подробного просмотра
     created_at datetime  - дата создания записи в нашей бд
-    updated_at datetime - даьа обновления записи из нашей бд [СД-02]
+    updated_at datetime - дата обновления записи из нашей бд [СД-02]
     raw_json jsonb - сырой json для референса [АП-01]
     }
 
