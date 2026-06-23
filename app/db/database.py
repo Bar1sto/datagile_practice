@@ -1,4 +1,4 @@
-from core.config import Settings
+from app.core.config import Settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -12,8 +12,8 @@ SessionLocal = sessionmaker(
     autocommit=False,
 )
 
-class Base(DeclarativeBase):
-    ...
+
+class Base(DeclarativeBase): ...
 
 
 def get_db():
