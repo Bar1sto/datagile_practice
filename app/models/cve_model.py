@@ -9,7 +9,7 @@ from sqlalchemy import (
     func,
 )
 from decimal import Decimal
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import mapped_column, Mapped
 
 
@@ -62,4 +62,3 @@ class CveRecord(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
-    raw_json: Mapped[dict] = mapped_column(JSONB)
