@@ -1,7 +1,7 @@
 import json
 from app.db.database import SessionLocal
 from app.normalizers.nvd import normalize_nvd
-from app.repositories.cve_repo import upsert_cve
+from app.repositories.cve import upsert_cve
 
 
 with open("docs/first_requests.json", "r") as file:

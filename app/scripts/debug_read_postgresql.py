@@ -1,5 +1,5 @@
 from app.db.database import SessionLocal
-from app.repositories.cve_repo import get_by_cve_id
+from app.repositories.cve import get_by_cve_id
 
 
 db = SessionLocal()

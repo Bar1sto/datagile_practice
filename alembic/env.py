@@ -6,8 +6,6 @@ from sqlalchemy import pool
 from alembic import context
 from app.core.config import Settings
 from app.db.database import Base
-from app.models.cve_model import CveRecord
-from app.models.sync_model import SyncRun
 
 
 # this is the Alembic Config object, which provides

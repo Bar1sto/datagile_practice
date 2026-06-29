@@ -1,12 +1,10 @@
 from datetime import datetime
 from decimal import Decimal
-from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
 
 class CVEDetailResponse(BaseModel):
-    id: UUID  # уточнить надо ли видить внутренний айдишник пользователю
     cve_id: str
     source_identifier: str | None
     published_at: datetime
