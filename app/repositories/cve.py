@@ -67,3 +67,17 @@ def count_cves(
         count_records = count_records.where(CveRecord.published_at <= published_to)
     result = db.execute(count_records)
     return result.scalar_one()
+
+
+def count_cves_severity(
+    db: Session,
+) -> dict[str, int]:
+    count_cves = select(func.count(CveRecord.cvss_base_severity)).select_from(CveRecord)
+    count_severity = count_cves.group_by(CveRecord.cvss_base_severity)
+    result = db.execute(count_severity)
+    dict_count = {}
+    for i, j in result:
+        severity = result[i]
+        count = result[j]
+        dict_count = {severity, count}
+    return dict_count

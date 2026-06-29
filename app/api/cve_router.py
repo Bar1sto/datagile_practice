@@ -59,7 +59,7 @@ def get_cve_id(
     responses={
         400: {
             "model": ErrorResponse,
-            "description": "Invalid data range",
+            "description": "Invalid date range",
         }
     },
 )
