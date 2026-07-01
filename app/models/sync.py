@@ -19,16 +19,16 @@ class SyncRun(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
-    source: Mapped[str] = mapped_column(
+    source: Mapped[str | None] = mapped_column(
         String(100),
         default="NVD",
     )
-    status: Mapped[str] = mapped_column(
+    status: Mapped[str | None] = mapped_column(
         String(50),
     )
-    added_count: Mapped[int] = mapped_column(Integer, default=0)
-    updated_count: Mapped[int] = mapped_column(Integer, default=0)
-    started_at: Mapped[datetime.datetime] = mapped_column(
+    added_count: Mapped[int | None] = mapped_column(Integer, default=0)
+    updated_count: Mapped[int | None] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime.datetime | None] = mapped_column(
         DateTime(
             timezone=True,
         ),

@@ -3,6 +3,7 @@ from pydantic_settings import SettingsConfigDict, BaseSettings
 
 class Settings(BaseSettings):
     nvd_api_key: str
+    nvd_base_url: str
     database_url: str
     app_name: str = "datagile_practice"
     debug: bool = False
