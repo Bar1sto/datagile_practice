@@ -1,5 +1,7 @@
 import httpx
+import time
 from datetime import datetime
+from typing import Any
 
 
 class NvdClient:
@@ -7,9 +9,15 @@ class NvdClient:
         self,
         api_key: str,
         base_url: str,
+        timeout_seconds: int = 90,
+        max_retries: int = 2,
+        retry_sleep_seconds: int = 10,
     ):
         self.base_url = base_url
         self.api_key = api_key
+        self.timeout_seconds = timeout_seconds
+        self.max_retries = max_retries
+        self.retry_sleep_seconds = retry_sleep_seconds
 
     def fetch_vulnerabilities(
         self, start_date: datetime, end_date: datetime
@@ -31,14 +39,7 @@ class NvdClient:
                 "resultsPerPage": results_per_page,
                 "startIndex": start_index,
             }
-            response = httpx.get(
-                self.base_url,
-                params=params,
-                headers=headers,
-                timeout=30,
-            )
-            response.raise_for_status()
-            data = response.json()
+            data = self._request_page(params=params, headers=headers)
             page_items = data.get("vulnerabilities", [])
             if not page_items:
                 break
@@ -49,3 +50,32 @@ class NvdClient:
             start_index += results_per_page
 
         return all_items
+
+    def _request_page(self, params: dict, headers: dict) -> dict[str, Any]:
+        attempt = 1
+        retryable_status = [429, 502, 503, 504]
+        while attempt <= self.max_retries + 1:
+            try:
+                response = httpx.get(
+                    self.base_url,
+                    params=params,
+                    headers=headers,
+                    timeout=self.timeout_seconds,
+                )
+                response.raise_for_status()
+                return response.json()
+            except (httpx.Timeout, httpx.NetworkError):
+                if attempt >= self.max_retries + 1:
+                    raise
+                else:
+                    time.sleep(self.retry_sleep_seconds)
+                    attempt += 1
+            except httpx.HTTPStatusError as error:
+                status_code = error.response.status_code
+                if status_code not in retryable_status:
+                    raise
+                if attempt >= self.max_retries + 1:
+                    raise
+                else:
+                    time.sleep(self.retry_sleep_seconds)
+                    attempt += 1

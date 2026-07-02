@@ -1,14 +1,29 @@
 from uuid import UUID
-
-from fastapi import APIRouter, Depends, Query, HTTPException
-
+from fastapi import (
+    APIRouter,
+    Depends,
+    Query,
+    HTTPException,
+)
 from app.api.errors import error_detail
+from app.clients.nvd import NvdClient
+from app.core.config import Settings
 from app.schemas.error import ErrorResponse
-from app.schemas.sync import SyncRunPaginatedResponse, SyncRunResponse
+from app.schemas.sync import (
+    SyncRunPaginatedResponse,
+    SyncRunResponse,
+    SyncResultResponse,
+)
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.repositories.sync import list_sync_runs, count_sync_runs, get_sync_run_id
-
+from app.repositories.sync import (
+    list_sync_runs,
+    count_sync_runs,
+    get_sync_run_id,
+    mark_sync_run_failed,
+    create_sync_run,
+)
+from app.services.nvd_sync import NvdSyncService
 
 router = APIRouter(
     prefix="/sync-runs",
@@ -58,3 +73,27 @@ def get_sync_run_detail(
             detail=error_detail("SYNC_RUN_NOT_FOUND", "sync_run_id not found"),
         )
     return SyncRunResponse.model_validate(sync_run)
+
+
+@router.post("/nvd/recent", response_model=SyncResultResponse)
+def post_sync_run(
+    db: Session = Depends(get_db),
+    days: int = Query(default=1, ge=1, le=7),
+):
+    settings = Settings()
+    nvd_client = NvdClient(settings.nvd_api_key, settings.nvd_base_url)
+    nvd_sync_service = NvdSyncService(client=nvd_client)
+    try:
+        result = nvd_sync_service.sync_recent(db=db, days=days)
+        db.commit()
+        return SyncResultResponse(
+            total_count=result.total_count,
+            added_count=result.added_count,
+            updated_count=result.updated_count,
+        )
+    except Exception:
+        db.rollback()
+        sync_run = create_sync_run(db=db, source="NVD")
+        mark_sync_run_failed(sync_run)
+        db.commit()
+        raise

@@ -12,7 +12,9 @@ end_date = datetime.now(timezone.utc)
 start_date = end_date - timedelta(days=1)
 db = SessionLocal()
 try:
-    result = service.sync_period(db=db, start_date=start_date, end_date=end_date)
+    # result = service.sync_period(db=db, start_date=start_date, end_date=end_date)
+    # result = service.sync_initial_load(db=db, months=1)
+    result = service.sync_recent(db=db, days=1)
     db.commit()
     print(result)
 except:

@@ -20,3 +20,9 @@ class SyncRunPaginatedResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class SyncResultResponse(BaseModel):
+    total_count: int
+    added_count: int
+    updated_count: int
