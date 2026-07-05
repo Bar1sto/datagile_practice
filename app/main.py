@@ -1,11 +1,12 @@
 import contextlib
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from app.api.cve import router as cve
 from app.api.stats import router as state
 from app.api.sync import router as sync
 from app.core.config import Settings
 from app.db.database import SessionLocal
-from app.scheduler.nvd_sync import NvdSyncScheduler
+from app.schedulers.nvd_sync import NvdSyncScheduler
+from app.api.exceptions import http_exception_handler
 
 
 @contextlib.asynccontextmanager
@@ -23,6 +24,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_exception_handler(HTTPException, http_exception_handler)
 
 app.include_router(cve)
 app.include_router(state)

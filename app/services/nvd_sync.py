@@ -15,8 +15,12 @@ class NvdSyncResult:
 
 
 class NvdSyncService:
-    def __init__(self, client: NvdClient):
+    def __init__(
+        self, client: NvdClient, initial_load_months: int = 12, chunk_days: int = 7
+    ):
         self.client = client
+        self.initial_load_months = initial_load_months
+        self.chunk_days = chunk_days
 
     def _process_vulnerabilities(self, db: Session, vulnerabilities) -> tuple[int, int]:
         added_count = 0
@@ -52,11 +56,16 @@ class NvdSyncService:
             updated_count=updated_count,
         )
 
-    def sync_initial_load(self, db: Session, months: int = 12) -> NvdSyncResult:
+    def sync_initial_load(
+        self, db: Session, months: int | None = None
+    ) -> NvdSyncResult:
         end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=months * 30)
+        if months is not None:
+            start_date = end_date - timedelta(days=months * 30)
+        else:
+            start_date = end_date - timedelta(days=self.initial_load_months * 30)
         chunks_days = _build_date_chunks(
-            start_date=start_date, end_date=end_date, chunks_days=7
+            start_date=start_date, end_date=end_date, chunks_days=self.chunk_days
         )
         total_count = 0
         added_count = 0

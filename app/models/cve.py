@@ -7,10 +7,15 @@ from sqlalchemy import (
     Numeric,
     Text,
     func,
+    ForeignKey,
 )
 from decimal import Decimal
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import mapped_column, Mapped
+from sqlalchemy.orm import (
+    mapped_column,
+    Mapped,
+    relationship,
+)
 
 
 class CveRecord(Base):
@@ -62,3 +67,40 @@ class CveRecord(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    affected_products: Mapped[list["CveAffectedProduct"]] = relationship(
+        back_populates="cve_record",
+        cascade="all, delete-orphan",
+    )
+
+
+class CveAffectedProduct(Base):
+    __tablename__ = "cve_affected_products"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    cve_record_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(
+            "cve_records.id",
+            ondelete="CASCADE",
+        )
+    )
+    vendor: Mapped[str] = mapped_column(
+        String(255),
+    )
+    product: Mapped[str] = mapped_column(
+        String(255),
+    )
+    version: Mapped[str | None] = mapped_column(
+        String(255),
+    )
+    cpe_uri: Mapped[str | None] = mapped_column(
+        String(500),
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    cve_record: Mapped["CveRecord"] = relationship(back_populates="affected_products")

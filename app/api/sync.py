@@ -81,8 +81,19 @@ def post_sync_run(
     days: int = Query(default=1, ge=1, le=7),
 ):
     settings = Settings()
-    nvd_client = NvdClient(settings.nvd_api_key, settings.nvd_base_url)
-    nvd_sync_service = NvdSyncService(client=nvd_client)
+    nvd_client = NvdClient(
+        api_key=settings.nvd_api_key,
+        base_url=settings.nvd_base_url,
+        timeout_seconds=settings.nvd_timeout_seconds,
+        max_retries=settings.nvd_max_retries,
+        retry_sleep_seconds=settings.nvd_retry_sleep_seconds,
+        results_per_page=settings.nvd_results_per_page,
+    )
+    nvd_sync_service = NvdSyncService(
+        client=nvd_client,
+        initial_load_months=settings.nvd_initial_load_months,
+        chunk_days=settings.nvd_chunk_days,
+    )
     try:
         result = nvd_sync_service.sync_recent(db=db, days=days)
         db.commit()

@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from typing import Any, Literal
-from app.models.cve import CveRecord
+from app.models.cve import CveRecord, CveAffectedProduct
 
 
 @dataclass
@@ -18,17 +18,40 @@ def get_by_cve_id(db: Session, cve_id: str) -> CveRecord | None:
     return result.scalar_one_or_none()
 
 
+def replace_affected_products(
+    record: CveRecord, affected_products_data: list[dict[str, Any]]
+) -> None:
+    record.affected_products.clear()
+    for affected_product_data in affected_products_data:
+        if not isinstance(affected_product_data, dict):
+            continue
+        vendor = affected_product_data.get("vendor")
+        product = affected_product_data.get("product")
+        cpe_uri = affected_product_data.get("cpe_uri")
+        version = affected_product_data.get("version")
+        if vendor is None or product is None:
+            continue
+        affected_product = CveAffectedProduct(
+            vendor=vendor, product=product, cpe_uri=cpe_uri, version=version
+        )
+        record.affected_products.append(affected_product)
+
+
 def upsert_cve(db: Session, cve_data: dict[str, Any]) -> CveUpsertResult:
     cve_id = cve_data["cve_id"]
+    cve_record_data = cve_data.copy()
+    affected_products_data = cve_record_data.pop("affected_products", [])
+
     existing = get_by_cve_id(db, cve_id)
     if existing is None:
-        obj = CveRecord(**cve_data)
+        obj = CveRecord(**cve_record_data)
         db.add(obj)
+        replace_affected_products(obj, affected_products_data)
         return CveUpsertResult(record=obj, created=True)
-    else:
-        for key, value in cve_data.items():
-            setattr(existing, key, value)
-        return CveUpsertResult(record=existing, created=False)
+    for key, value in cve_record_data.items():
+        setattr(existing, key, value)
+    replace_affected_products(existing, affected_products_data)
+    return CveUpsertResult(record=existing, created=False)
 
 
 def list_cves(
@@ -38,6 +61,8 @@ def list_cves(
     severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] | None,
     published_from: datetime | None,
     published_to: datetime | None,
+    vendor: str | None,
+    product: str | None,
 ) -> list[CveRecord]:
     select_cves = select(CveRecord)
     if severity is not None:
@@ -48,6 +73,16 @@ def list_cves(
 
     if published_to is not None:
         select_cves = select_cves.where(CveRecord.published_at <= published_to)
+
+    if vendor is not None or product is not None:
+        select_cves = select_cves.join(CveAffectedProduct).distinct()
+
+    if vendor is not None:
+        select_cves = select_cves.where(CveAffectedProduct.vendor.ilike(f"%{vendor}%"))
+    if product is not None:
+        select_cves = select_cves.where(
+            CveAffectedProduct.product.ilike(f"%{product}%")
+        )
 
     select_cves = (
         select_cves.order_by(CveRecord.published_at.desc(), CveRecord.cve_id.asc())
@@ -63,14 +98,31 @@ def count_cves(
     severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] | None,
     published_from: datetime | None,
     published_to: datetime | None,
+    vendor: str | None,
+    product: str | None,
 ) -> int:
-    count_records = select(func.count()).select_from(CveRecord)
+    if vendor is not None or product is not None:
+        count_records = (
+            select(func.count(CveRecord.id.distinct()))
+            .select_from(CveRecord)
+            .join(CveAffectedProduct)
+        )
+    else:
+        count_records = select(func.count()).select_from(CveRecord)
     if severity is not None:
         count_records = count_records.where(CveRecord.cvss_base_severity == severity)
     if published_from is not None:
         count_records = count_records.where(CveRecord.published_at >= published_from)
     if published_to is not None:
         count_records = count_records.where(CveRecord.published_at <= published_to)
+    if vendor is not None:
+        count_records = count_records.where(
+            CveAffectedProduct.vendor.ilike(f"%{vendor}%")
+        )
+    if product is not None:
+        count_records = count_records.where(
+            CveAffectedProduct.product.ilike(f"%{product}%")
+        )
     result = db.execute(count_records)
     return result.scalar_one()
 

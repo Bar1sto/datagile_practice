@@ -18,11 +18,22 @@ class NvdSyncScheduler:
         self.scheduler: BackgroundScheduler | None = None
 
     def run_nvd_sync(self) -> None:
-        client = NvdClient(self.settings.nvd_api_key, self.settings.nvd_base_url)
-        service = NvdSyncService(client)
+        client = NvdClient(
+            api_key=self.settings.nvd_api_key,
+            base_url=self.settings.nvd_base_url,
+            timeout_seconds=self.settings.nvd_timeout_seconds,
+            max_retries=self.settings.nvd_max_retries,
+            retry_sleep_seconds=self.settings.nvd_retry_sleep_seconds,
+            results_per_page=self.settings.nvd_results_per_page,
+        )
+        service = NvdSyncService(
+            client=client,
+            initial_load_months=self.settings.nvd_initial_load_months,
+            chunk_days=self.settings.nvd_chunk_days,
+        )
         db = self.session_factory()
         try:
-            result = service.sync_recent(db=db, days=1)
+            result = service.sync_recent(db=db, days=self.settings.nvd_recent_sync_days)
             db.commit()
             print(result)
         except Exception:
@@ -40,7 +51,7 @@ class NvdSyncScheduler:
             self.run_nvd_sync,
             trigger="interval",
             id="nvd_sync",
-            hours=24,
+            hours=self.settings.nvd_scheduler_interval_hours,
             replace_existing=True,
         )
         self.scheduler.start()

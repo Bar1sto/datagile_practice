@@ -4,6 +4,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
 
+class CveAffectedProductResponse(BaseModel):
+    vendor: str
+    product: str
+    version: str | None
+    cpe_uri: str | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CVEDetailResponse(BaseModel):
     cve_id: str
     source_identifier: str | None
@@ -14,6 +23,7 @@ class CVEDetailResponse(BaseModel):
     cvss_base_score: Decimal | None
     cvss_base_severity: str | None
     cvss_vector: str | None
+    affected_products: list[CveAffectedProductResponse]
     created_at: datetime
     updated_at: datetime
 

@@ -12,12 +12,14 @@ class NvdClient:
         timeout_seconds: int = 90,
         max_retries: int = 2,
         retry_sleep_seconds: int = 10,
+        results_per_page: int = 2000,
     ):
         self.base_url = base_url
         self.api_key = api_key
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self.retry_sleep_seconds = retry_sleep_seconds
+        self.results_per_page = results_per_page
 
     def fetch_vulnerabilities(
         self, start_date: datetime, end_date: datetime
@@ -27,8 +29,6 @@ class NvdClient:
         headers = {
             "apiKey": self.api_key,
         }
-
-        results_per_page = 2000
         start_index = 0
         all_items = []
 
@@ -36,7 +36,7 @@ class NvdClient:
             params = {
                 "pubStartDate": start_date_str,
                 "pubEndDate": end_date_str,
-                "resultsPerPage": results_per_page,
+                "resultsPerPage": self.results_per_page,
                 "startIndex": start_index,
             }
             data = self._request_page(params=params, headers=headers)
@@ -47,7 +47,7 @@ class NvdClient:
             total_results = data.get("totalResults", 0)
             if len(all_items) >= total_results:
                 break
-            start_index += results_per_page
+            start_index += self.results_per_page
 
         return all_items
 

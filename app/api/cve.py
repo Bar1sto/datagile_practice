@@ -70,6 +70,8 @@ def get_all_cve(
     db: Session = Depends(get_db),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    vendor: str | None = None,
+    product: str | None = None,
 ) -> CVEPaginatedResponse:
     if (published_from is not None and published_to is not None) and (
         published_to < published_from
@@ -81,11 +83,13 @@ def get_all_cve(
                 "published_from must be less than or equal to published_to",
             ),
         )
-    records = list_cves(db, limit, offset, severity, published_from, published_to)
+    records = list_cves(
+        db, limit, offset, severity, published_from, published_to, vendor, product
+    )
     items = [CVEListItemResponse.model_validate(record) for record in records]
     return CVEPaginatedResponse(
         items=items,
-        total=count_cves(db, severity, published_from, published_to),
+        total=count_cves(db, severity, published_from, published_to, vendor, product),
         limit=limit,
         offset=offset,
     )
