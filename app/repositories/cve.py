@@ -49,8 +49,15 @@ def upsert_cve(db: Session, cve_data: dict[str, Any]) -> CveUpsertResult:
         replace_affected_products(obj, affected_products_data)
         return CveUpsertResult(record=obj, created=True)
     for key, value in cve_record_data.items():
+        if key == "source_identifier":
+            continue
+        if value is None:
+            continue
+        if value == "":
+            continue
         setattr(existing, key, value)
-    replace_affected_products(existing, affected_products_data)
+    if affected_products_data:
+        replace_affected_products(existing, affected_products_data)
     return CveUpsertResult(record=existing, created=False)
 
 

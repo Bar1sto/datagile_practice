@@ -14,8 +14,16 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=StatsResponse)
-def get_stats_severity(db: Session = Depends(get_db)) -> StatsResponse:
+@router.get(
+    "/",
+    response_model=StatsResponse,
+    summary="Get CVE statistics",
+    description=(
+        "Get CVE statistics, including total count, "
+        "counts be severity, latest published date and latest modified date"
+    ),
+)
+def get_stats(db: Session = Depends(get_db)) -> StatsResponse:
     total_cves = count_all_cves(db)
     by_severity = count_cves_severity(db)
     latest_published_at, latest_modified_at = get_cve_date_stats(db)

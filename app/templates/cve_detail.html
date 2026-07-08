@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}{{ cve.cve_id }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/ui/cve">← Back to list</a>
+    <h1>{{ cve.cve_id }}</h1>
+    <p class="muted">{{ cve.source_identifier or "Unknown source" }}</p>
+</section>
+
+<section class="card">
+    <h2>Основная информация</h2>
+
+    <dl class="details">
+        <dt>Severity</dt>
+        <dd>{{ cve.cvss_base_severity or "UNKNOWN / not analyzed yet" }}</dd>
+
+        <dt>Score</dt>
+        <dd>{{ cve.cvss_base_score if cve.cvss_base_score is not none else "Not available" }}</dd>
+
+        <dt>CVSS vector</dt>
+        <dd>{{ cve.cvss_vector or "Not available" }}</dd>
+
+        <dt>Status</dt>
+        <dd>{{ cve.vuln_status or "-" }}</dd>
+
+        <dt>Published</dt>
+        <dd>
+            {% if cve.published_at %}
+            {{ cve.published_at.strftime("%Y-%m-%d %H:%M") }}
+            {% else %}
+            -
+            {% endif %}
+        </dd>
+
+        <dt>Last modified</dt>
+        <dd>
+            {% if cve.last_modified_at %}
+            {{ cve.last_modified_at.strftime("%Y-%m-%d %H:%M") }}
+            {% else %}
+            -
+            {% endif %}
+        </dd>
+    </dl>
+</section>
+
+<section class="card">
+    <h2>Description</h2>
+    <p>{{ cve.description }}</p>
+</section>
+
+<section class="card">
+    <h2>Affected products</h2>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Vendor</th>
+            <th>Product</th>
+            <th>Version</th>
+            <th>CPE URI</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in cve.affected_products %}
+        <tr>
+            <td>{{ item.vendor }}</td>
+            <td>{{ item.product }}</td>
+            <td>{{ item.version or "-" }}</td>
+            <td>{{ item.cpe_uri or "-" }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="4">No affected products</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

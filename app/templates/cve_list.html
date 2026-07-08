@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}CVE list{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>CVE list</h1>
+    <p class="muted">Total: {{ total }}</p>
+</section>
+
+<form class="filters" method="get" action="/ui/cve">
+    <label>
+        Vendor
+        <input type="text" name="vendor" value="{{ vendor }}" placeholder="Dell">
+    </label>
+
+    <label>
+        Product
+        <input type="text" name="product" value="{{ product }}" placeholder="PowerProtect">
+    </label>
+
+    <label>
+        Published from
+        <input type="date" name="published_from" value="{{ published_from }}">
+    </label>
+
+    <label>
+        Published to
+        <input type="date" name="published_to" value="{{ published_to }}">
+    </label>
+
+    <label>
+        Severity
+        <select name="severity">
+            <option value="">Any</option>
+            <option value="LOW" {% if severity == "LOW" %}selected{% endif %}>LOW</option>
+            <option value="MEDIUM" {% if severity == "MEDIUM" %}selected{% endif %}>MEDIUM</option>
+            <option value="HIGH" {% if severity == "HIGH" %}selected{% endif %}>HIGH</option>
+            <option value="CRITICAL" {% if severity == "CRITICAL" %}selected{% endif %}>CRITICAL</option>
+        </select>
+    </label>
+
+    <label>
+        Limit
+        <input type="number" name="limit" value="{{ limit }}" min="1" max="100">
+    </label>
+
+    <button type="submit">Поиск</button>
+    <a class="button-secondary" href="/ui/cve">Сброс</a>
+</form>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>CVE ID</th>
+        <th>Severity</th>
+        <th>Score</th>
+        <th>Published</th>
+        <th>Description</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for cve in cves %}
+        <tr>
+            <td>{{ cve.cve_id }}</td>
+            <td>{{ cve.cvss_base_severity or "UNKNOWN" }}</td>
+            <td>{{ cve.cvss_base_score or "-" }}</td>
+            <td>
+                {% if cve.published_at %}
+                    {{ cve.published_at.strftime("%Y-%m-%d") }}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>{{ cve.description[:180] }}{% if cve.description|length > 180 %}...{% endif %}</td>
+            <td>
+                <a href="/ui/cve/{{ cve.cve_id }}">Details</a>
+            </td>
+        </tr>
+    {% else %}
+        <tr>
+            <td colspan="6">No CVEs found</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination">
+    {% if has_prev %}
+        <a class="button-secondary"
+           href="/ui/cve?limit={{ limit }}&offset={{ prev_offset }}&vendor={{ vendor }}&product={{ product }}&severity={{ severity }}&published_from={{ published_from }}&published_to={{ published_to }}">
+            ← Previous
+        </a>
+    {% endif %}
+
+    <span>
+        Показано {{ offset + 1 }}–{{ [offset + limit, total]|min }} of {{ total }}
+    </span>
+
+    {% if has_next %}
+        <a class="button-secondary"
+           href="/ui/cve?limit={{ limit }}&offset={{ next_offset }}&vendor={{ vendor }}&product={{ product }}&severity={{ severity }}&published_from={{ published_from }}&published_to={{ published_to }}">
+            Next →
+        </a>
+    {% endif %}
+</div>
+{% endblock %}

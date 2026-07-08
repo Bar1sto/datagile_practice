@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     nvd_initial_load_months: int = 12
     nvd_chunk_days: int = 7
     nvd_scheduler_interval_hours: int = 24
+    osv_base_url: str = "https://api.osv.dev"
+    osv_timeout_seconds: int = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",

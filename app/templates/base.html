@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}CVE Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+</head>
+<body>
+<header class="header">
+    <div class="container header__inner">
+        <a class="logo" href="/ui/cve">CVE Tracker</a>
+        <nav class="nav">
+            <a href="/ui/cve">CVE</a>
+            <a href="/ui/stats">Stats</a>
+            <a href="/docs">Swagger</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

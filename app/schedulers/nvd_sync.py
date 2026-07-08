@@ -1,10 +1,13 @@
+import logging
 from app.core.config import Settings
 from app.clients.nvd import NvdClient
-from app.repositories.sync import create_sync_run, mark_sync_run_failed
 from app.services.nvd_sync import NvdSyncService
 from apscheduler.schedulers.background import BackgroundScheduler
 from collections.abc import Callable
 from sqlalchemy.orm import Session
+
+
+logger = logging.getLogger(__name__)
 
 
 class NvdSyncScheduler:
@@ -33,14 +36,17 @@ class NvdSyncScheduler:
         )
         db = self.session_factory()
         try:
+            logger.info("Starting scheduler NVD sync")
             result = service.sync_recent(db=db, days=self.settings.nvd_recent_sync_days)
-            db.commit()
-            print(result)
+            logger.info(
+                "Scheduler NVD sync completed: total=%s, added=%s, updated=%s",
+                result.total_count,
+                result.added_count,
+                result.updated_count,
+            )
         except Exception:
             db.rollback()
-            failed_sync_run = create_sync_run(db=db, source="NVD")
-            mark_sync_run_failed(failed_sync_run)
-            db.commit()
+            logger.exception("Scheduled NVD sync failed")
             raise
         finally:
             db.close()
@@ -52,6 +58,7 @@ class NvdSyncScheduler:
             trigger="interval",
             id="nvd_sync",
             hours=self.settings.nvd_scheduler_interval_hours,
+            # minutes=1,
             replace_existing=True,
         )
         self.scheduler.start()

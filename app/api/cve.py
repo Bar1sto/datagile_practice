@@ -5,6 +5,7 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
+    Path,
 )
 from sqlalchemy.orm import Session
 from app.db.database import get_db
@@ -33,6 +34,8 @@ router = APIRouter(
 @router.get(
     "/{cve_id}",
     response_model=CVEDetailResponse,
+    summary="Get cve details",
+    description="Returns full info about a CVE, including CVSS data and affected products ",
     responses={
         404: {
             "model": ErrorResponse,
@@ -41,7 +44,11 @@ router = APIRouter(
     },
 )
 def get_cve_id(
-    cve_id: str,
+    cve_id: str = Path(
+        ...,
+        description="CVE identifier in the format CVE-YYYY-NNNN",
+        example="CVE-2024-34065",
+    ),
     db: Session = Depends(get_db),
 ) -> CVEDetailResponse:
     cve = get_by_cve_id(db, cve_id)
@@ -56,6 +63,11 @@ def get_cve_id(
 @router.get(
     "/",
     response_model=CVEPaginatedResponse,
+    summary="List CVEs",
+    description=(
+        "Returns paginated CVE records with optional filters by severity, "
+        "publication date range, vendor and product"
+    ),
     responses={
         400: {
             "model": ErrorResponse,
@@ -64,14 +76,45 @@ def get_cve_id(
     },
 )
 def get_all_cve(
-    severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] | None = None,
-    published_from: datetime | None = None,
-    published_to: datetime | None = None,
+    severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] | None = Query(
+        default=None,
+        description="Filter Cves be CVSS severity",
+        example="LOW",
+    ),
+    published_from: datetime | None = Query(
+        default=None,
+        description="Return CVEs published at or after this datetime",
+        example="2026-07-01T00:00Z",
+    ),
+    published_to: datetime | None = Query(
+        default=None,
+        description="Return CVEs published at or before this datetime",
+        example="2026-07-07T23:59:59Z",
+    ),
     db: Session = Depends(get_db),
-    limit: int = Query(default=20, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-    vendor: str | None = None,
-    product: str | None = None,
+    limit: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+        description="Maximum number of CVEs to return",
+        example=20,
+    ),
+    offset: int = Query(
+        default=0,
+        ge=0,
+        description="Number of CVEs to skip before returning results",
+        example=0,
+    ),
+    vendor: str | None = Query(
+        default=None,
+        description="Filter by affected product vendor or ecosystem",
+        example="Dell",
+    ),
+    product: str | None = Query(
+        default=None,
+        description="Filter by affected product name",
+        example="PowerProtect",
+    ),
 ) -> CVEPaginatedResponse:
     if (published_from is not None and published_to is not None) and (
         published_to < published_from

@@ -1,8 +1,53 @@
+# CVE Tracker
+
+Backend-сервис для загрузки CVE, хранения в PostgreSQL и поиска уязвимостей через REST API
+
+## Стек
+
+- Python 3.11+
+- FastAPI
+- PostgreSQL
+- SQLAlchemy 2.0
+- Alembic
+- APScheduler
+- httpx
+- pytest
+- Docker / docker-compose
+
+## Что реализовано
+
+- Загрузка CVE из NVD API
+- Первичная/периодическая синхронизация
+- Ручной запуск синхронизации через API
+- Таблица `sync_runs` со статусами запусков
+- Upsert CVE без дублей при повторной синхронизации
+- Хранение affected products: vendor, product, version
+- Получение CVE по `cve_id`
+- Список CVE с пагинацией
+- Фильтры по severity, date range, vendor, product
+- Endpoint статистики
+- Единая структура ошибок
+- Swagger UI
+- Unit-тесты для NVD normalizer
+- Docker-конфигурация подготовлена
+
+## API endpoints
+
+- `GET /health`
+- `GET /cve`
+- `GET /cve/{cve_id}`
+- `GET /stats`
+- `POST /sync-runs/nvd/recent`
+
 ## Структура проекта
+
 ```
 app/ - корень программы
   main.py - основной файл, точка входа
 
+  clients/ - клиент для работы с внешним API и сервисами
+    nvd.py
+  
   core/ - папка настроек, конфиг из .env
     config.py
 
@@ -15,6 +60,7 @@ app/ - корень программы
 
   schemas/ - пайдантик схемы ответа АПИ
     cve.py
+    
 
   api/ - папка роутеров
     health.py
@@ -33,4 +79,5 @@ app/ - корень программы
 ```
 
 ## ER-диаграмма
-![docs](er-diagramm.png)
+
+![docs](docs/er-diagramm.png)

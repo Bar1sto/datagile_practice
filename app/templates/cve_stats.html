@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>Статистика</h1>
+    <p class="muted">Общая сводка по загруженным CVE</p>
+</section>
+
+<section class="stats-grid">
+    <div class="card">
+        <h2>Всего CVE</h2>
+        <p class="stat-number">{{ total_cves }}</p>
+    </div>
+
+    <div class="card">
+        <h2>Последняя публикация</h2>
+        <p>
+            {% if latest_published_at %}
+            {{ latest_published_at.strftime("%Y-%m-%d %H:%M") }}
+            {% else %}
+            -
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="card">
+        <h2>Последнее изменение</h2>
+        <p>
+            {% if latest_modified_at %}
+            {{ latest_modified_at.strftime("%Y-%m-%d %H:%M") }}
+            {% else %}
+            -
+            {% endif %}
+        </p>
+    </div>
+</section>
+
+<section class="card">
+    <h2>По severity</h2>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Severity</th>
+            <th>Count</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for severity, count in by_severity.items() %}
+        <tr>
+            <td>{{ severity }}</td>
+            <td>{{ count }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="2">Нет данных</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

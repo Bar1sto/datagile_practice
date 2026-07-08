@@ -22,6 +22,16 @@ services:
     ports:
       - "8000:8000"
 
+  sync-worker:
+    build: .
+    container_name: nvd_sync_worker
+    restart: always
+    env_file:
+      - ".env"
+    depends_on:
+      - db
+    command: python -m app.workers.nvd_sync
+
 
 volumes:
   postgres_data:
