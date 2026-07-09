@@ -1,8 +1,8 @@
 import time
 from app.core.config import Settings
-from app.db.database import SessionLocal
 from app.schedulers.nvd_sync import NvdSyncScheduler
 from app.core.logging import configure_logging
+from app.db.database import AsyncSessionLocal
 
 
 configure_logging()
@@ -12,7 +12,7 @@ def main() -> None:
     settings = Settings()
     scheduler = NvdSyncScheduler(
         settings=settings,
-        session_factory=SessionLocal,
+        session_factory=AsyncSessionLocal,
     )
     scheduler.start()
     try:

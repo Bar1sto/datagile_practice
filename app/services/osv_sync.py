@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.clients.osv import OsvClient
 from app.normalizers.osv import normalize_osv
 
-from app.repositories.async_cve import upsert_cve_async
-from app.repositories.async_sync import (
+from app.repositories.cve import upsert_cve_async
+from app.repositories.sync import (
     create_sync_run_async,
     get_sync_run_id_async,
     mark_sync_run_failed_async,

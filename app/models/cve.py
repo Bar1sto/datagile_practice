@@ -1,6 +1,6 @@
 import datetime
 import uuid
-from app.db.database import Base
+from app.db.base import Base
 from sqlalchemy import (
     String,
     DateTime,

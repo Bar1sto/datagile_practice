@@ -8,16 +8,14 @@ from fastapi import (
     Path,
 )
 
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import error_detail
-from app.clients.nvd import NvdClient
+from app.clients.nvd import AsyncNvdClient
 from app.clients.osv import OsvClient
 from app.core.config import Settings
 
-from app.db.database import get_db
-from app.db.async_database import get_async_db
+from app.db.database import get_async_db
 
 from app.schemas.error import ErrorResponse
 from app.schemas.osv import OsvPackageSyncRequest, OsvPackageSyncQueryResponse
@@ -27,13 +25,13 @@ from app.schemas.sync import (
     SyncResultResponse,
 )
 
-from app.repositories.async_sync import (
+from app.repositories.sync import (
     count_sync_runs_async,
     get_sync_run_id_async,
     list_sync_runs_async,
 )
 
-from app.services.nvd_sync import NvdSyncService
+from app.services.nvd_sync import AsyncNvdSyncService
 from app.services.osv_sync import OsvSyncService
 
 
@@ -43,9 +41,9 @@ router = APIRouter(
 )
 
 
-def build_nvd_sync_service() -> NvdSyncService:
+def build_async_nvd_service() -> AsyncNvdSyncService:
     settings = Settings()
-    nvd_client = NvdClient(
+    nvd_client = AsyncNvdClient(
         api_key=settings.nvd_api_key,
         base_url=settings.nvd_base_url,
         timeout_seconds=settings.nvd_timeout_seconds,
@@ -53,7 +51,7 @@ def build_nvd_sync_service() -> NvdSyncService:
         retry_sleep_seconds=settings.nvd_retry_sleep_seconds,
         results_per_page=settings.nvd_results_per_page,
     )
-    return NvdSyncService(
+    return AsyncNvdSyncService(
         client=nvd_client,
         initial_load_months=settings.nvd_initial_load_months,
         chunk_days=settings.nvd_chunk_days,
@@ -149,8 +147,8 @@ async def get_sync_run_detail(
         "upserts them into the database and creates a sync run record"
     ),
 )
-def run_recent_nvd_sync(
-    db: Session = Depends(get_db),
+async def run_recent_nvd_sync(
+    db: AsyncSession = Depends(get_async_db),
     days: int = Query(
         default=1,
         ge=1,
@@ -158,18 +156,14 @@ def run_recent_nvd_sync(
         description="Number of recent days to synchronize from NVD",
         example=1,
     ),
-):
-    nvd_sync_service = build_nvd_sync_service()
-    try:
-        result = nvd_sync_service.sync_recent(db=db, days=days)
-        return SyncResultResponse(
-            total_count=result.total_count,
-            added_count=result.added_count,
-            updated_count=result.updated_count,
-        )
-    except Exception:
-        db.rollback()
-        raise
+) -> SyncResultResponse:
+    nvd_sync_service = build_async_nvd_service()
+    result = await nvd_sync_service.sync_recent(db=db, days=days)
+    return SyncResultResponse(
+        total_count=result.total_count,
+        added_count=result.added_count,
+        updated_count=result.updated_count,
+    )
 
 
 @router.post(
@@ -215,7 +209,7 @@ async def run_osv_package_sync(
         "creates a sync run record"
     ),
 )
-def run_initial_nvd_load(
+async def run_initial_nvd_load(
     months: int = Query(
         default=12,
         ge=1,
@@ -223,16 +217,12 @@ def run_initial_nvd_load(
         description="Number of past months to synchronize from NVD",
         example=12,
     ),
-    db: Session = Depends(get_db),
-):
-    nvd_sync_service = build_nvd_sync_service()
-    try:
-        result = nvd_sync_service.sync_initial_load(db=db, months=months)
-        return SyncResultResponse(
-            total_count=result.total_count,
-            added_count=result.added_count,
-            updated_count=result.updated_count,
-        )
-    except Exception:
-        db.rollback()
-        raise
+    db: AsyncSession = Depends(get_async_db),
+) -> SyncResultResponse:
+    nvd_sync_service = build_async_nvd_service()
+    result = await nvd_sync_service.sync_initial_load(db=db, months=months)
+    return SyncResultResponse(
+        total_count=result.total_count,
+        added_count=result.added_count,
+        updated_count=result.updated_count,
+    )

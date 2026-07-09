@@ -3,8 +3,8 @@ from fastapi import (
     Depends,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.async_database import get_async_db
-from app.repositories.async_stats import (
+from app.db.database import get_async_db
+from app.repositories.stats import (
     count_all_cves_async,
     count_cves_severity_async,
     get_cve_date_stats_async,

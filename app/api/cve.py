@@ -13,9 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import error_detail
 
-from app.db.async_database import get_async_db
+from app.db.database import get_async_db
 
-from app.repositories.async_cve import (
+from app.repositories.cve import (
     count_cves_async,
     get_by_cve_id_async,
     list_cves_async,

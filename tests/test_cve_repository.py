@@ -1,9 +1,13 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from app.repositories.cve import upsert_cve
+
+import pytest
+
+from app.repositories.cve import upsert_cve_async
 
 
-def test_cve_repository_upsert_cve(db_session):
+@pytest.mark.asyncio
+async def test_cve_repository_upsert_cve(db_session):
     fake_data = {
         "cve_id": "CVE-2026-53478",
         "source_identifier": "security_alert@emc.com",
@@ -23,9 +27,12 @@ def test_cve_repository_upsert_cve(db_session):
             },
         ],
     }
-    result = upsert_cve(db=db_session, cve_data=fake_data)
+
+    result = await upsert_cve_async(db=db_session, cve_data=fake_data)
+    await db_session.flush()
+
     affected = result.record.affected_products[0]
-    db_session.flush()
+
     assert result.created is True
     assert result.record.cve_id == "CVE-2026-53478"
     assert len(result.record.affected_products) == 1
