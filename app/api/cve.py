@@ -1,5 +1,6 @@
-from typing import Literal
 from datetime import datetime
+from typing import Literal
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -7,13 +8,19 @@ from fastapi import (
     Query,
     Path,
 )
-from sqlalchemy.orm import Session
-from app.db.database import get_db
-from app.repositories.cve import (
-    get_by_cve_id,
-    list_cves,
-    count_cves,
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.errors import error_detail
+
+from app.db.async_database import get_async_db
+
+from app.repositories.async_cve import (
+    count_cves_async,
+    get_by_cve_id_async,
+    list_cves_async,
 )
+
 from app.schemas.cve import (
     CVEDetailResponse,
     CVEPaginatedResponse,
@@ -22,7 +29,6 @@ from app.schemas.cve import (
 from app.schemas.error import (
     ErrorResponse,
 )
-from app.api.errors import error_detail
 
 
 router = APIRouter(
@@ -43,15 +49,15 @@ router = APIRouter(
         }
     },
 )
-def get_cve_id(
+async def get_cve_id(
     cve_id: str = Path(
         ...,
         description="CVE identifier in the format CVE-YYYY-NNNN",
         example="CVE-2024-34065",
     ),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ) -> CVEDetailResponse:
-    cve = get_by_cve_id(db, cve_id)
+    cve = await get_by_cve_id_async(db=db, cve_id=cve_id)
     if cve is None:
         raise HTTPException(
             status_code=404,
@@ -75,7 +81,7 @@ def get_cve_id(
         }
     },
 )
-def get_all_cve(
+async def get_all_cve(
     severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] | None = Query(
         default=None,
         description="Filter Cves be CVSS severity",
@@ -91,7 +97,7 @@ def get_all_cve(
         description="Return CVEs published at or before this datetime",
         example="2026-07-07T23:59:59Z",
     ),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     limit: int = Query(
         default=20,
         ge=1,
@@ -126,13 +132,27 @@ def get_all_cve(
                 "published_from must be less than or equal to published_to",
             ),
         )
-    records = list_cves(
-        db, limit, offset, severity, published_from, published_to, vendor, product
+    records = await list_cves_async(
+        db=db,
+        limit=limit,
+        offset=offset,
+        severity=severity,
+        published_from=published_from,
+        published_to=published_to,
+        vendor=vendor,
+        product=product,
     )
     items = [CVEListItemResponse.model_validate(record) for record in records]
     return CVEPaginatedResponse(
         items=items,
-        total=count_cves(db, severity, published_from, published_to, vendor, product),
+        total=await count_cves_async(
+            db=db,
+            severity=severity,
+            published_from=published_from,
+            published_to=published_to,
+            vendor=vendor,
+            product=product,
+        ),
         limit=limit,
         offset=offset,
     )

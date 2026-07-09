@@ -1,13 +1,14 @@
 from dataclasses import dataclass
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.clients.osv import OsvClient
 from app.normalizers.osv import normalize_osv
-from app.repositories.cve import upsert_cve
-from app.repositories.sync import (
-    create_sync_run,
-    get_sync_run_id,
-    mark_sync_run_failed,
-    mark_sync_run_success,
+
+from app.repositories.async_cve import upsert_cve_async
+from app.repositories.async_sync import (
+    create_sync_run_async,
+    get_sync_run_id_async,
+    mark_sync_run_failed_async,
+    mark_sync_run_success_async,
 )
 
 
@@ -25,18 +26,17 @@ class OsvSyncService:
 
     async def sync_package(
         self,
-        db: Session,
+        db: AsyncSession,
         ecosystem: str,
         package_name: str,
         version: str,
     ) -> OsvSyncResult:
-        sync_run = create_sync_run(
+        sync_run = await create_sync_run_async(
             db=db,
             source="OSV",
         )
-        db.flush()
         sync_run_id = sync_run.id
-        db.commit()
+        await db.commit()
         try:
             vulns = await self.client.query_package(
                 package_name=package_name, version=version, ecosystem=ecosystem
@@ -56,22 +56,22 @@ class OsvSyncService:
                     skipped_count += 1
                     continue
                 seen_cve_ids.add(cve_id)
-                result = upsert_cve(db=db, cve_data=normalized)
+                result = await upsert_cve_async(db=db, cve_data=normalized)
                 if result.created:
                     added_count += 1
                 else:
                     updated_count += 1
-            success_sync_run = get_sync_run_id(
+            success_sync_run = await get_sync_run_id_async(
                 db=db,
                 sync_run_id=sync_run_id,
             )
             if success_sync_run is not None:
-                mark_sync_run_success(
+                mark_sync_run_success_async(
                     sync_run=success_sync_run,
                     added_count=added_count,
                     updated_count=updated_count,
                 )
-                db.commit()
+                await db.commit()
             return OsvSyncResult(
                 total_count=total_count,
                 added_count=added_count,
@@ -79,14 +79,14 @@ class OsvSyncService:
                 skipped_count=skipped_count,
             )
         except Exception:
-            db.rollback()
-            failed_sync_run = get_sync_run_id(
+            await db.rollback()
+            failed_sync_run = await get_sync_run_id_async(
                 db=db,
                 sync_run_id=sync_run_id,
             )
             if failed_sync_run is not None:
-                mark_sync_run_failed(
+                mark_sync_run_failed_async(
                     sync_run=failed_sync_run,
                 )
-                db.commit()
+                await db.commit()
             raise

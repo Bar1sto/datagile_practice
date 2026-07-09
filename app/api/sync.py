@@ -1,4 +1,5 @@
 from uuid import UUID
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -6,25 +7,33 @@ from fastapi import (
     HTTPException,
     Path,
 )
+
+from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.errors import error_detail
 from app.clients.nvd import NvdClient
+from app.clients.osv import OsvClient
 from app.core.config import Settings
+
+from app.db.database import get_db
+from app.db.async_database import get_async_db
+
 from app.schemas.error import ErrorResponse
+from app.schemas.osv import OsvPackageSyncRequest, OsvPackageSyncQueryResponse
 from app.schemas.sync import (
     SyncRunPaginatedResponse,
     SyncRunResponse,
     SyncResultResponse,
 )
-from sqlalchemy.orm import Session
-from app.db.database import get_db
-from app.repositories.sync import (
-    list_sync_runs,
-    count_sync_runs,
-    get_sync_run_id,
+
+from app.repositories.async_sync import (
+    count_sync_runs_async,
+    get_sync_run_id_async,
+    list_sync_runs_async,
 )
+
 from app.services.nvd_sync import NvdSyncService
-from app.clients.osv import OsvClient
-from app.schemas.osv import OsvPackageSyncRequest, OsvPackageSyncQueryResponse
 from app.services.osv_sync import OsvSyncService
 
 
@@ -60,8 +69,8 @@ def build_nvd_sync_service() -> NvdSyncService:
         "such as NVD and OSV"
     ),
 )
-def list_sync_run_history(
-    db: Session = Depends(get_db),
+async def list_sync_run_history(
+    db: AsyncSession = Depends(get_async_db),
     offset: int = Query(
         default=0,
         ge=0,
@@ -76,13 +85,20 @@ def list_sync_run_history(
         example=20,
     ),
 ) -> SyncRunPaginatedResponse:
-    sync_records = list_sync_runs(db=db, offset=offset, limit=limit)
+    sync_records = await list_sync_runs_async(
+        db=db,
+        offset=offset,
+        limit=limit,
+    )
     items = [
         SyncRunResponse.model_validate(sync_record) for sync_record in sync_records
     ]
+    total = await count_sync_runs_async(
+        db=db,
+    )
     return SyncRunPaginatedResponse(
         items=items,
-        total=count_sync_runs(db=db),
+        total=total,
         limit=limit,
         offset=offset,
     )
@@ -103,15 +119,18 @@ def list_sync_run_history(
         }
     },
 )
-def get_sync_run_detail(
+async def get_sync_run_detail(
     sync_run_id: UUID = Path(
         ...,
         description="Unique identifier of the sync run",
         example="550e8400-e29b-41d4-a716-446655440000",
     ),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ) -> SyncRunResponse:
-    sync_run = get_sync_run_id(db=db, sync_run_id=sync_run_id)
+    sync_run = await get_sync_run_id_async(
+        db=db,
+        sync_run_id=sync_run_id,
+    )
     if sync_run is None:
         raise HTTPException(
             status_code=404,
@@ -164,7 +183,7 @@ def run_recent_nvd_sync(
     ),
 )
 async def run_osv_package_sync(
-    request: OsvPackageSyncRequest, db: Session = Depends(get_db)
+    request: OsvPackageSyncRequest, db: AsyncSession = Depends(get_async_db)
 ) -> OsvPackageSyncQueryResponse:
     settings = Settings()
     client = OsvClient(
