@@ -1,81 +1,165 @@
-# CVE Tracker
+# CVE Vulnerability Tracker
 
-Backend-сервис для загрузки CVE, хранения в PostgreSQL и поиска уязвимостей через REST API
+Backend-сервис для загрузки, хранения, синхронизации и поиска CVE-уязвимостей.
+
+Проект реализован в рамках практики. Основной источник данных — NVD API. Дополнительно реализована интеграция с OSV API
+для поиска уязвимостей по package/version.
 
 ## Стек
 
-- Python 3.11+
+- Python 3.13
 - FastAPI
 - PostgreSQL
-- SQLAlchemy 2.0
+- SQLAlchemy 2.0 Async
 - Alembic
 - APScheduler
 - httpx
-- pytest
-- Docker / docker-compose
+- Jinja2
+- pytest / pytest-asyncio / pytest-cov
+- Docker / Docker Compose
 
 ## Что реализовано
 
 - Загрузка CVE из NVD API
-- Первичная/периодическая синхронизация
-- Ручной запуск синхронизации через API
-- Таблица `sync_runs` со статусами запусков
+- Первичная загрузка данных за период до 12 месяцев
+- Ручной запуск recent sync через API
+- Периодическая синхронизация через отдельный worker-процесс
+- Таблица `sync_runs` со статусами запусков синхронизации
 - Upsert CVE без дублей при повторной синхронизации
-- Хранение affected products: vendor, product, version
+- Хранение affected products: vendor, product, version, cpe_uri
 - Получение CVE по `cve_id`
 - Список CVE с пагинацией
 - Фильтры по severity, date range, vendor, product
 - Endpoint статистики
+- Интеграция с OSV API по ecosystem/package/version
 - Единая структура ошибок
 - Swagger UI
-- Unit-тесты для NVD normalizer
-- Docker-конфигурация подготовлена
+- Jinja2 web UI
+- Логирование в консоль и файл
+- Docker Compose конфигурация для backend, PostgreSQL и sync-worker
+- Тесты с покрытием около 65%
 
 ## API endpoints
 
-- `GET /health`
-- `GET /cve`
-- `GET /cve/{cve_id}`
-- `GET /stats`
-- `POST /sync-runs/nvd/recent`
+### CVE
+
+- `GET /cve/` — список CVE с пагинацией и фильтрами
+- `GET /cve/{cve_id}` — получение CVE по идентификатору
+
+### Stats
+
+- `GET /stats` — статистика по CVE
+
+### Sync
+
+- `GET /sync-runs/` — список запусков синхронизации
+- `GET /sync-runs/{sync_run_id}` — получение sync run по ID
+- `POST /sync-runs/nvd/recent` — ручной запуск recent NVD sync
+- `POST /sync-runs/nvd/initial-load` — первичная загрузка NVD за период
+- `POST /sync-runs/osv/package` — поиск OSV vulnerabilities по package/version
+
+### Web UI
+
+- `GET /ui/cve` — web-страница со списком CVE и фильтрами
+- `GET /ui/cve/{cve_id}` — web-страница CVE detail
+- `GET /ui/stats` — web-страница статистики
+
+### Docs
+
+- `GET /docs` — Swagger UI
+- `GET /redoc` — ReDoc
+
+## Переменные окружения
+
+Пример `.env`:
+
+```env
+DATABASE_URL=postgresql+psycopg://postgres:admin@db:5432/cve_sync
+ASYNC_DATABASE_URL=postgresql+asyncpg://postgres:admin@db:5432/cve_sync
+
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=admin
+POSTGRES_DB=cve_sync
+
+NVD_API_KEY=
+NVD_BASE_URL=https://services.nvd.nist.gov/rest/json/cves/2.0
+NVD_TIMEOUT_SECONDS=90
+NVD_MAX_RETRIES=2
+NVD_RETRY_SLEEP_SECONDS=10
+NVD_RESULTS_PER_PAGE=2000
+NVD_RECENT_SYNC_DAYS=1
+NVD_INITIAL_LOAD_MONTHS=12
+NVD_CHUNK_DAYS=7
+NVD_SCHEDULER_INTERVAL_HOURS=24
+
+OSV_BASE_URL=https://api.osv.dev
+OSV_TIMEOUT_SECONDS=30
+```
 
 ## Структура проекта
 
 ```
-app/ - корень программы
-  main.py - основной файл, точка входа
+app/
+  main.py                    # точка входа FastAPI-приложения
 
-  clients/ - клиент для работы с внешним API и сервисами
+  api/                       # REST API routers
+    cve.py
+    stats.py
+    sync.py
+    errors.py
+    exceptions.py
+
+  clients/                   # клиенты внешних API
     nvd.py
-  
-  core/ - папка настроек, конфиг из .env
-    config.py
+    osv.py
 
-  db/ - папка работа с бд, сессии, алхимия, управление подключениями к бд (ЖЦ)
+  core/                      # настройки и логирование
+    config.py
+    logging.py
+
+  db/                        # SQLAlchemy base, engine, session
+    base.py
     database.py
 
-  models/ - папка моделей, орм модели таблицы бд
+  models/                    # ORM-модели
     cve.py
-    sync_run.py
+    sync.py
 
-  schemas/ - пайдантик схемы ответа АПИ
-    cve.py
-    
-
-  api/ - папка роутеров
-    health.py
-    cve.py
-
-  repositories/ - папка sql запросов, получение сохранение cve, поиск по айди
-    cve.py
-
-  services/ - папка бизнес логики, что делать с све, как обрабатывать данные
-    cve.py
-
-  normalizers/ - папка преобразования vnd json к внутренним данным
+  normalizers/               # преобразование внешних данных к внутреннему формату
     nvd.py
+    osv.py
 
-  /docs - папка с md документами с разбором тз, бд и первым получением json от vnd
+  repositories/              # слой работы с БД
+    cve.py
+    stats.py
+    sync.py
+
+  schemas/                   # Pydantic-схемы
+    cve.py
+    error.py
+    osv.py
+    stats.py
+    sync.py
+
+  services/                  # бизнес-логика синхронизации
+    nvd_sync.py
+    osv_sync.py
+
+  schedulers/                # планировщик периодического sync
+    nvd_sync.py
+
+  workers/                   # отдельные worker entrypoints
+    nvd_sync.py
+
+  web/                       # Jinja2 web UI router
+    router.py
+
+  templates/                 # HTML-шаблоны
+  static/                    # CSS/static files
+
+alembic/                     # миграции БД
+tests/                       # тесты
+docs/                        # дополнительная документация
 ```
 
 ## ER-диаграмма
